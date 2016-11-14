@@ -13,32 +13,26 @@ import Debug
 -- Global Configs
 
 
-velocity =
-    15
+type alias Config =
+    { velocity : Int
+    , screenHeight : Int
+    , screenWidth : Int
+    , numberOfColumns : Int
+    , numberOfRows : Int
+    , cellWidth : Float
+    , cellHeight : Float
+    }
 
 
-screenHeight =
-    550
-
-
-screenWidth =
-    650
-
-
-numberOfColumns =
-    13
-
-
-numberOfRows =
-    11
-
-
-cellWidth =
-    screenWidth / numberOfColumns
-
-
-cellHeight =
-    screenHeight / numberOfRows
+config =
+    { velocity = 15
+    , screenHeight = 750
+    , screenWidth = 850
+    , numberOfColumns = 13
+    , numberOfRows = 11
+    , cellWidth = 850 / 13
+    , cellHeight = 750 / 11
+    }
 
 
 main =
@@ -71,19 +65,19 @@ update msg model =
     case msg of
         KeyPress 37 ->
             -- Left
-            noCmds { model | x = model.x - velocity }
+            noCmds { model | x = model.x - config.velocity }
 
         KeyPress 39 ->
             -- Right
-            noCmds { model | x = model.x + velocity }
+            noCmds { model | x = model.x + config.velocity }
 
         KeyPress 40 ->
             -- Down
-            noCmds { model | y = model.y + velocity }
+            noCmds { model | y = model.y + config.velocity }
 
         KeyPress 38 ->
             -- Up
-            noCmds { model | y = model.y - velocity }
+            noCmds { model | y = model.y - config.velocity }
 
         _ ->
             noCmds model
@@ -96,8 +90,8 @@ subscriptions model =
 
 view model =
     Svg.svg
-        [ Svg.width <| toString screenWidth
-        , Svg.height <| toString screenHeight
+        [ Svg.width <| toString config.screenWidth
+        , Svg.height <| toString config.screenHeight
         ]
         (grid model
             ++ [ specialSquare model ]
@@ -107,12 +101,25 @@ view model =
 
 player : Model -> Svg Msg
 player model =
-       Svg.image [Svg.xlinkHref forward, Svg.width "50", Svg.height "50", Svg.x (model.x - 25 |> toString), Svg.y (model.y - 25 |> toString)] []
+    let
+        playerWidth =
+            config.cellWidth |> toString
+
+        playerHeight =
+            config.cellHeight |> toString
+
+        centerX =
+            ((toFloat model.x) - (config.cellWidth / 2)) |> toString
+
+        centerY =
+            ((toFloat model.y) - (config.cellHeight / 2)) |> toString
+    in
+        Svg.image [ Svg.xlinkHref forward, Svg.width playerWidth, Svg.height playerHeight, Svg.x centerX, Svg.y centerY ] []
 
 
 grid : Model -> List (Svg Msg)
 grid model =
-    (List.map column [0..numberOfColumns]) |> List.concat
+    (List.map column [0..config.numberOfColumns]) |> List.concat
 
 
 specialSquare : Model -> Svg Msg
@@ -123,35 +130,37 @@ specialSquare model =
     in
         cell True colIndex rowIndex
 
-positionToCell : Int -> Int -> (Int, Int)
+
+positionToCell : Int -> Int -> ( Int, Int )
 positionToCell x y =
-    (floor (toFloat x / cellWidth), floor (toFloat y / cellHeight))
+    ( floor (toFloat x / config.cellWidth), floor (toFloat y / config.cellHeight) )
+
 
 
 -- Svg.rect
---     [ Svg.width <| toString screenWidth
---     , Svg.height <| toString screenHeight
+--     [ Svg.width <| toString config.screenWidth
+--     , Svg.height <| toString config.screenHeight
 --     , Svg.fill "yellow"
 --     ]
 
 
 column : Int -> List (Svg Msg)
 column columnIndex =
-    (List.map (cell False columnIndex) [0..numberOfRows])
+    (List.map (cell False columnIndex) [0..config.numberOfRows])
 
 
 cell : Bool -> Int -> Int -> Svg Msg
 cell isOver columnIndex rowIndex =
     let
         xoffset =
-            (toFloat columnIndex) * cellWidth
+            (toFloat columnIndex) * config.cellWidth
 
         yoffset =
-            (toFloat rowIndex) * cellHeight
+            (toFloat rowIndex) * config.cellHeight
     in
         Svg.rect
-            [ Svg.width (toString cellWidth)
-            , Svg.height (toString cellHeight)
+            [ Svg.width (toString config.cellWidth)
+            , Svg.height (toString config.cellHeight)
             , Svg.fill <| cellColor (columnIndex + rowIndex) isOver
             , Svg.y (toString yoffset)
             , Svg.x (toString xoffset)
@@ -169,12 +178,15 @@ cellColor cellNum isOver =
         "yellow"
 
 
------ Assets -----------
 
-# TODO maybe a record type instead of functions for the different sprites
+----- Assets -----------
+-- TODO maybe a record type instead of functions for the different sprites
+
+
 assetPath : String
-assetPath  =
+assetPath =
     "assets/"
+
 
 forward : String
 forward =
