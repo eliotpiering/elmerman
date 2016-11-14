@@ -1,6 +1,7 @@
 module Main exposing (..)
 
 import Html exposing (Html)
+import Html.Attributes as Html
 import Html.App as App
 import Keyboard exposing (KeyCode)
 import Svg exposing (Svg)
@@ -13,7 +14,7 @@ import Debug
 
 
 velocity =
-    10
+    15
 
 
 screenHeight =
@@ -106,7 +107,7 @@ view model =
 
 player : Model -> Svg Msg
 player model =
-    Svg.circle [ Svg.cx (toString model.x), Svg.cy (toString model.y), Svg.r "5" ] []
+       Svg.image [Svg.xlinkHref forward, Svg.width "50", Svg.height "50", Svg.x (model.x - 25 |> toString), Svg.y (model.y - 25 |> toString)] []
 
 
 grid : Model -> List (Svg Msg)
@@ -166,3 +167,15 @@ cellColor cellNum isOver =
         "red"
     else
         "yellow"
+
+
+----- Assets -----------
+
+# TODO maybe a record type instead of functions for the different sprites
+assetPath : String
+assetPath  =
+    "assets/"
+
+forward : String
+forward =
+    assetPath ++ "forward.png"
