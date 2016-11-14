@@ -171,7 +171,7 @@ cellColor cellNum isOver =
 
 ----- Assets -----------
 
-# TODO maybe a record type instead of functions for the different sprites
+-- TODO maybe a record type instead of functions for the different sprites
 assetPath : String
 assetPath  =
     "assets/"
