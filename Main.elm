@@ -19,20 +19,33 @@ type alias Config =
     , screenWidth : Int
     , numberOfColumns : Int
     , numberOfRows : Int
-    , cellWidth : Float
-    , cellHeight : Float
     }
 
 
 config =
     { velocity = 15
-    , screenHeight = 750
-    , screenWidth = 850
+    , screenHeight = 550
+    , screenWidth = 650
     , numberOfColumns = 13
     , numberOfRows = 11
-    , cellWidth = 850 / 13
-    , cellHeight = 750 / 11
     }
+
+
+cellWidth : Int
+cellWidth =
+    config.screenWidth // config.numberOfRows
+
+cellHeight : Int
+cellHeight =
+    config.screenHeight // config.numberOfColumns
+
+halfSpriteWidth : Int
+halfSpriteWidth =
+    cellWidth // 2
+
+halfSpriteHeight : Int
+halfSpriteHeight =
+    cellHeight // 2
 
 
 main =
@@ -54,7 +67,7 @@ type alias Model =
 
 initialModel : Model
 initialModel =
-    { x = 0, y = 0 }
+    { x = halfSpriteWidth, y = halfSpriteHeight }
 
 
 type Msg
@@ -62,32 +75,26 @@ type Msg
 
 
 update msg model =
-    let
-        halfSpriteWidth =
-            round (config.cellWidth / 2)
+    case msg of
+        KeyPress 37 ->
+            -- Left
+            noCmds { model | x = max halfSpriteWidth (model.x - config.velocity) }
 
-        halfSpriteHeight =
-            round (config.cellHeight / 2)
-    in
-        case msg of
-            KeyPress 37 ->
-                -- Left
-                noCmds { model | x = max halfSpriteWidth (model.x - config.velocity) }
+        KeyPress 39 ->
+            -- Right
+            -- noCmds { model | x = min (model.x + config.velocity) (850 - halfSpriteWidth) }
+            noCmds { model | x = min (model.x + config.velocity) (config.screenWidth - halfSpriteWidth) }
 
-            KeyPress 39 ->
-                -- Right
-                noCmds { model | x = min (model.x + config.velocity) (config.screenWidth - halfSpriteWidth) }
+        KeyPress 40 ->
+            -- Down
+            noCmds { model | y = min (model.y + config.velocity) (config.screenHeight - halfSpriteHeight) }
 
-            KeyPress 40 ->
-                -- Down
-                noCmds { model | y = min (model.y + config.velocity) (config.screenHeight - halfSpriteHeight) }
+        KeyPress 38 ->
+            -- Up
+            noCmds { model | y = max (model.y - config.velocity) (0 + halfSpriteHeight) }
 
-            KeyPress 38 ->
-                -- Up
-                noCmds { model | y = max (model.y - config.velocity) (0 + halfSpriteHeight) }
-
-            _ ->
-                noCmds model
+        _ ->
+            noCmds model
 
 
 subscriptions model =
@@ -110,16 +117,16 @@ player : Model -> Svg Msg
 player model =
     let
         playerWidth =
-            config.cellWidth |> toString
+            cellWidth |> toString
 
         playerHeight =
-            config.cellHeight |> toString
+            cellHeight |> toString
 
         centerX =
-            ((toFloat model.x) - (config.cellWidth / 2)) |> toString
+            (model.x - (cellWidth // 2)) |> toString
 
         centerY =
-            ((toFloat model.y) - (config.cellHeight / 2)) |> toString
+            (model.y - (cellHeight // 2)) |> toString
     in
         Svg.image [ Svg.xlinkHref forward, Svg.width playerWidth, Svg.height playerHeight, Svg.x centerX, Svg.y centerY ] []
 
@@ -140,7 +147,7 @@ specialSquare model =
 
 positionToCell : Int -> Int -> ( Int, Int )
 positionToCell x y =
-    ( floor (toFloat x / config.cellWidth), floor (toFloat y / config.cellHeight) )
+    (x // cellWidth, y // cellHeight)
 
 
 
@@ -160,14 +167,14 @@ cell : Bool -> Int -> Int -> Svg Msg
 cell isOver columnIndex rowIndex =
     let
         xoffset =
-            (toFloat columnIndex) * config.cellWidth
+            columnIndex * cellWidth
 
         yoffset =
-            (toFloat rowIndex) * config.cellHeight
+            rowIndex * cellHeight
     in
         Svg.rect
-            [ Svg.width (toString config.cellWidth)
-            , Svg.height (toString config.cellHeight)
+            [ Svg.width (toString cellWidth)
+            , Svg.height (toString cellHeight)
             , Svg.fill <| cellColor (columnIndex + rowIndex) isOver
             , Svg.y (toString yoffset)
             , Svg.x (toString xoffset)
