@@ -62,25 +62,32 @@ type Msg
 
 
 update msg model =
-    case msg of
-        KeyPress 37 ->
-            -- Left
-            noCmds { model | x = model.x - config.velocity }
+    let
+        halfSpriteWidth =
+            round (config.cellWidth / 2)
 
-        KeyPress 39 ->
-            -- Right
-            noCmds { model | x = model.x + config.velocity }
+        halfSpriteHeight =
+            round (config.cellHeight / 2)
+    in
+        case msg of
+            KeyPress 37 ->
+                -- Left
+                noCmds { model | x = max halfSpriteWidth (model.x - config.velocity) }
 
-        KeyPress 40 ->
-            -- Down
-            noCmds { model | y = model.y + config.velocity }
+            KeyPress 39 ->
+                -- Right
+                noCmds { model | x = min (model.x + config.velocity) (config.screenWidth - halfSpriteWidth) }
 
-        KeyPress 38 ->
-            -- Up
-            noCmds { model | y = model.y - config.velocity }
+            KeyPress 40 ->
+                -- Down
+                noCmds { model | y = min (model.y + config.velocity) (config.screenHeight - halfSpriteHeight) }
 
-        _ ->
-            noCmds model
+            KeyPress 38 ->
+                -- Up
+                noCmds { model | y = max (model.y - config.velocity) (0 + halfSpriteHeight) }
+
+            _ ->
+                noCmds model
 
 
 subscriptions model =
