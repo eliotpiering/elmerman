@@ -2,12 +2,13 @@ module Main exposing (..)
 
 import Html exposing (Html)
 import Html.Attributes as Html
-import Html.App as App
+import Html
 import Keyboard exposing (KeyCode)
 import Svg exposing (Svg)
 import Svg.Attributes as Svg
 import Char
 import Debug
+import AnimationFrame
 
 
 -- Global Configs
@@ -49,7 +50,7 @@ halfSpriteHeight =
 
 
 main =
-    App.program
+    Html.program
         { init = noCmds initialModel
         , view = view
         , update = update
@@ -133,7 +134,7 @@ player model =
 
 grid : Model -> List (Svg Msg)
 grid model =
-    (List.map column [0..config.numberOfColumns]) |> List.concat
+    (List.map column <| List.range 0 config.numberOfColumns) |> List.concat
 
 
 specialSquare : Model -> Svg Msg
@@ -160,7 +161,7 @@ positionToCell x y =
 
 column : Int -> List (Svg Msg)
 column columnIndex =
-    (List.map (cell False columnIndex) [0..config.numberOfRows])
+    (List.map (cell False columnIndex) <| List.range 0 config.numberOfRows)
 
 
 cell : Bool -> Int -> Int -> Svg Msg
