@@ -8,6 +8,7 @@ import Svg exposing (Svg)
 import Svg.Attributes as Svg
 import Char
 import Debug
+import Time exposing (Time)
 import AnimationFrame
 
 
@@ -15,7 +16,7 @@ import AnimationFrame
 
 
 type alias Config =
-    { velocity : Int
+    { velocity : Float
     , screenHeight : Int
     , screenWidth : Int
     , numberOfColumns : Int
@@ -24,7 +25,7 @@ type alias Config =
 
 
 config =
-    { velocity = 15
+    { velocity = 0.3
     , screenHeight = 550
     , screenWidth = 650
     , numberOfColumns = 13
@@ -34,15 +35,18 @@ config =
 
 cellWidth : Int
 cellWidth =
-    config.screenWidth // config.numberOfRows
+    config.screenWidth // config.numberOfColumns
+
 
 cellHeight : Int
 cellHeight =
-    config.screenHeight // config.numberOfColumns
+    config.screenHeight // config.numberOfRows
+
 
 halfSpriteWidth : Int
 halfSpriteWidth =
     cellWidth // 2
+
 
 halfSpriteHeight : Int
 halfSpriteHeight =
@@ -63,44 +67,111 @@ noCmds model =
 
 
 type alias Model =
-    { x : Int, y : Int }
+    { x : Int, y : Int, direction : Direction }
+
+
+type Direction
+    = Left
+    | Right
+    | Up
+    | Down
+    | NoDirection
 
 
 initialModel : Model
 initialModel =
-    { x = halfSpriteWidth, y = halfSpriteHeight }
+    { x = halfSpriteWidth, y = halfSpriteHeight, direction = NoDirection }
 
 
 type Msg
-    = KeyPress KeyCode
+    = KeyDown KeyCode
+    | KeyUp KeyCode
+    | Tick Time
 
 
+
+update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        KeyPress 37 ->
-            -- Left
-            noCmds { model | x = max halfSpriteWidth (model.x - config.velocity) }
+        Tick timeDiff ->
+            noCmds (move model timeDiff)
 
-        KeyPress 39 ->
-            -- Right
-            -- noCmds { model | x = min (model.x + config.velocity) (850 - halfSpriteWidth) }
-            noCmds { model | x = min (model.x + config.velocity) (config.screenWidth - halfSpriteWidth) }
+        KeyUp code ->
+            case code of
+                37 ->
+                    turnOff model Left
 
-        KeyPress 40 ->
-            -- Down
-            noCmds { model | y = min (model.y + config.velocity) (config.screenHeight - halfSpriteHeight) }
+                39 ->
+                    turnOff model Right
 
-        KeyPress 38 ->
-            -- Up
-            noCmds { model | y = max (model.y - config.velocity) (0 + halfSpriteHeight) }
+                40 ->
+                    turnOff model Down
 
-        _ ->
-            noCmds model
+                38 ->
+                    turnOff model Up
+
+                _ ->
+                    noCmds model
+
+        KeyDown code ->
+            case code of
+                37 ->
+                    turnOn model Left
+
+                39 ->
+                    turnOn model Right
+
+                40 ->
+                    turnOn model Down
+
+                38 ->
+                    turnOn model Up
+
+                _ ->
+                    noCmds model
+
+
+move : Model -> Time -> Model
+move model timeDiff =
+    let
+        changeInPosition =
+            timeDiff * config.velocity |> round
+    in
+        case model.direction of
+            Left ->
+                { model | x = max halfSpriteWidth (model.x - changeInPosition) }
+
+            Right ->
+                { model | x = min (config.screenWidth - halfSpriteWidth) (model.x + changeInPosition) }
+
+            Up ->
+                { model | y = max halfSpriteHeight (model.y - changeInPosition) }
+
+            Down ->
+                { model | y = min (config.screenHeight - halfSpriteHeight) (model.y + changeInPosition) }
+
+            NoDirection ->
+                model
+
+
+turnOn : Model -> Direction -> ( Model, Cmd Msg )
+turnOn model direction =
+    noCmds { model | direction = direction }
+
+turnOff : Model -> Direction -> ( Model, Cmd Msg )
+turnOff model direction =
+    if model.direction == direction then
+        noCmds { model | direction = NoDirection }
+    else
+        noCmds model
 
 
 subscriptions model =
     Sub.batch
-        [ Keyboard.downs KeyPress ]
+        [ Keyboard.downs KeyDown
+        , Keyboard.ups KeyUp
+        , AnimationFrame.diffs Tick
+        ]
 
 
 view model =
@@ -148,7 +219,7 @@ specialSquare model =
 
 positionToCell : Int -> Int -> ( Int, Int )
 positionToCell x y =
-    (x // cellWidth, y // cellHeight)
+    ( x // cellWidth, y // cellHeight )
 
 
 
