@@ -17,6 +17,7 @@ import AnimationFrame
 
 type alias Config =
     { velocity : Float
+    , spriteChangeRate : Int
     , screenHeight : Int
     , screenWidth : Int
     , numberOfColumns : Int
@@ -25,7 +26,8 @@ type alias Config =
 
 
 config =
-    { velocity = 0.3
+    { velocity = 0.27
+    , spriteChangeRate = 8
     , screenHeight = 550
     , screenWidth = 650
     , numberOfColumns = 13
@@ -67,7 +69,11 @@ noCmds model =
 
 
 type alias Model =
-    { x : Int, y : Int, direction : Direction }
+    { x : Int
+    , y : Int
+    , direction : Direction
+    , currentSprite : Int
+    }
 
 
 type Direction
@@ -80,7 +86,11 @@ type Direction
 
 initialModel : Model
 initialModel =
-    { x = halfSpriteWidth, y = halfSpriteHeight, direction = NoDirection }
+    { x = halfSpriteWidth
+    , y = halfSpriteHeight
+    , direction = NoDirection
+    , currentSprite = 0
+    }
 
 
 type Msg
@@ -89,8 +99,7 @@ type Msg
     | Tick Time
 
 
-
-update : Msg -> Model -> (Model, Cmd Msg)
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Tick timeDiff ->
@@ -131,6 +140,21 @@ update msg model =
                     noCmds model
 
 
+updateSpiteNumber : Int -> Int
+updateSpiteNumber number =
+    -- have to use spriteChangeRate parameter to slow down the rate that the sprite changes
+    let
+        numberOfSprites =
+            3
+    in
+        if number >= (numberOfSprites * config.spriteChangeRate) then
+            -- reset back to 0
+            0
+        else
+            -- increate the sprite number
+            number + 1
+
+
 move : Model -> Time -> Model
 move model timeDiff =
     let
@@ -139,16 +163,28 @@ move model timeDiff =
     in
         case model.direction of
             Left ->
-                { model | x = max halfSpriteWidth (model.x - changeInPosition) }
+                { model
+                    | x = max halfSpriteWidth (model.x - changeInPosition)
+                    , currentSprite = updateSpiteNumber model.currentSprite
+                }
 
             Right ->
-                { model | x = min (config.screenWidth - halfSpriteWidth) (model.x + changeInPosition) }
+                { model
+                    | x = min (config.screenWidth - halfSpriteWidth) (model.x + changeInPosition)
+                    , currentSprite = updateSpiteNumber model.currentSprite
+                }
 
             Up ->
-                { model | y = max halfSpriteHeight (model.y - changeInPosition) }
+                { model
+                    | y = max halfSpriteHeight (model.y - changeInPosition)
+                    , currentSprite = updateSpiteNumber model.currentSprite
+                }
 
             Down ->
-                { model | y = min (config.screenHeight - halfSpriteHeight) (model.y + changeInPosition) }
+                { model
+                    | y = min (config.screenHeight - halfSpriteHeight) (model.y + changeInPosition)
+                    , currentSprite = updateSpiteNumber model.currentSprite
+                }
 
             NoDirection ->
                 model
@@ -157,6 +193,7 @@ move model timeDiff =
 turnOn : Model -> Direction -> ( Model, Cmd Msg )
 turnOn model direction =
     noCmds { model | direction = direction }
+
 
 turnOff : Model -> Direction -> ( Model, Cmd Msg )
 turnOff model direction =
@@ -199,8 +236,11 @@ player model =
 
         centerY =
             (model.y - (cellHeight // 2)) |> toString
+
+        spriteImage =
+            getPlayerSprite model
     in
-        Svg.image [ Svg.xlinkHref forward, Svg.width playerWidth, Svg.height playerHeight, Svg.x centerX, Svg.y centerY ] []
+        Svg.image [ Svg.xlinkHref spriteImage, Svg.width playerWidth, Svg.height playerHeight, Svg.x centerX, Svg.y centerY ] []
 
 
 grid : Model -> List (Svg Msg)
@@ -220,14 +260,6 @@ specialSquare model =
 positionToCell : Int -> Int -> ( Int, Int )
 positionToCell x y =
     ( x // cellWidth, y // cellHeight )
-
-
-
--- Svg.rect
---     [ Svg.width <| toString config.screenWidth
---     , Svg.height <| toString config.screenHeight
---     , Svg.fill "yellow"
---     ]
 
 
 column : Int -> List (Svg Msg)
@@ -266,14 +298,27 @@ cellColor cellNum isOver =
 
 
 ----- Assets -----------
--- TODO maybe a record type instead of functions for the different sprites
+
+
+getPlayerSprite : Model -> String
+getPlayerSprite model =
+    case model.direction of
+        Left ->
+            assetPath ++ "left" ++ (toString <| model.currentSprite // config.spriteChangeRate) ++ ".png"
+
+        Right ->
+            assetPath ++ "right" ++ (toString <| model.currentSprite // config.spriteChangeRate) ++ ".png"
+
+        Up ->
+            assetPath ++ "back" ++ (toString <| model.currentSprite // config.spriteChangeRate) ++ ".png"
+
+        Down ->
+            assetPath ++ "forward" ++ (toString <| model.currentSprite // config.spriteChangeRate) ++ ".png"
+
+        NoDirection ->
+            assetPath ++ "forward0.png"
 
 
 assetPath : String
 assetPath =
     "assets/"
-
-
-forward : String
-forward =
-    assetPath ++ "forward.png"
