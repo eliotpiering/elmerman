@@ -158,8 +158,8 @@ update msg model =
                     noCmds model
 
 
-updateSpiteNumber : Int -> Int
-updateSpiteNumber number =
+updateSpriteNumber : Int -> Int
+updateSpriteNumber number =
     -- have to use spriteChangeRate parameter to slow down the rate that the sprite changes
     let
         numberOfSprites =
@@ -182,7 +182,7 @@ updateBombs timeDiff model =
                     (\bomb ->
                         { bomb
                             | timer = bomb.timer - (round timeDiff)
-                            , currentSprite = updateSpiteNumber bomb.currentSprite
+                            , currentSprite = updateSpriteNumber bomb.currentSprite
                         }
                     )
                 |> List.filter
@@ -202,25 +202,25 @@ move timeDiff model =
             Left ->
                 { model
                     | x = max halfSpriteWidth (model.x - changeInPosition)
-                    , currentSprite = updateSpiteNumber model.currentSprite
+                    , currentSprite = updateSpriteNumber model.currentSprite
                 }
 
             Right ->
                 { model
                     | x = min (config.screenWidth - halfSpriteWidth) (model.x + changeInPosition)
-                    , currentSprite = updateSpiteNumber model.currentSprite
+                    , currentSprite = updateSpriteNumber model.currentSprite
                 }
 
             Up ->
                 { model
                     | y = max halfSpriteHeight (model.y - changeInPosition)
-                    , currentSprite = updateSpiteNumber model.currentSprite
+                    , currentSprite = updateSpriteNumber model.currentSprite
                 }
 
             Down ->
                 { model
                     | y = min (config.screenHeight - halfSpriteHeight) (model.y + changeInPosition)
-                    , currentSprite = updateSpiteNumber model.currentSprite
+                    , currentSprite = updateSpriteNumber model.currentSprite
                 }
 
             NoDirection ->
