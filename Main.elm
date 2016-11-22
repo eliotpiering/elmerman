@@ -75,6 +75,7 @@ type alias Model =
     , direction : Direction
     , currentSprite : Int
     , bombs : List Bomb
+    , bricks : List Brick
     }
 
 
@@ -84,6 +85,24 @@ type alias Bomb =
     , currentSprite : Int
     , timer : Int
     }
+
+
+type alias Brick =
+    { x : Int
+    , y : Int
+    }
+
+
+type alias Obstacle =
+    -- A generic model used in the move function
+    -- This could be a Brick or a Bomb
+    { x : Int
+    , y : Int
+    }
+
+
+toObstactle item =
+    { x = item.x, y = item.y }
 
 
 type Direction
@@ -101,6 +120,7 @@ initialModel =
     , direction = NoDirection
     , currentSprite = 0
     , bombs = []
+    , bricks = [ { x = 2, y = 0 }, { x = 2, y = 1 }, { x = 2, y = 2 }, { x = 0, y = 2 }, { x = 1, y = 2 } ]
     }
 
 
@@ -202,26 +222,26 @@ move timeDiff model =
         ( currentCellX, currentCellY ) =
             positionToCell ( model.x, model.y )
 
-        bombsInColumn =
-            model.bombs |> List.filter (\bomb -> bomb.x == currentCellX)
+        obstaclesInColumn =
+            List.append (List.map toObstactle model.bombs) (List.map toObstactle model.bricks) |> List.filter (\obs -> obs.x == currentCellX)
 
-        bombsInRow =
-            model.bombs |> List.filter (\bomb -> bomb.y == currentCellY)
+        obstaclesInRow =
+            List.append (List.map toObstactle model.bombs) (List.map toObstactle model.bricks) |> List.filter (\obs -> obs.y == currentCellY)
     in
         case model.direction of
             Left ->
                 let
-                    maybeReleventBombBorder =
-                        -- first filter any bombs to the right of currentCellX
-                        -- then get bomb with the higest X (or Nothing)
-                        -- finally get the position of the right edge of that bomb
-                        bombsInRow
-                            |> List.filter (\bomb -> bomb.x < currentCellX)
-                            |> ListEx.maximumBy (\bomb -> bomb.x)
-                            |> Maybe.andThen (\bomb -> Just (((bomb.x + 1) * cellWidth) + 1))
+                    maybeReleventObsBorder =
+                        -- first filter any obs to the right of currentCellX
+                        -- then get obs with the higest X (or Nothing)
+                        -- finally get the position of the right edge of that obs
+                        obstaclesInRow
+                            |> List.filter (\obs -> obs.x < currentCellX)
+                            |> ListEx.maximumBy (\obs -> obs.x)
+                            |> Maybe.andThen (\obs -> Just (((obs.x + 1) * cellWidth) + 1))
 
                     leftBorder =
-                        Maybe.withDefault halfSpriteWidth maybeReleventBombBorder
+                        Maybe.withDefault halfSpriteWidth maybeReleventObsBorder
 
                     newX =
                         max leftBorder (model.x - changeInPosition)
@@ -233,17 +253,17 @@ move timeDiff model =
 
             Right ->
                 let
-                    maybeReleventBombBorder =
-                        -- first filter any bombs to the left of currentCellX
-                        -- then get bomb with the lowest X (or Nothing)
-                        -- finally get the position of the right edge of that bomb
-                        bombsInRow
-                            |> List.filter (\bomb -> bomb.x > currentCellX)
-                            |> ListEx.minimumBy (\bomb -> bomb.x)
-                            |> Maybe.andThen (\bomb -> Just ((bomb.x * cellWidth) - 1))
+                    maybeReleventObsBorder =
+                        -- first filter any obs to the left of currentCellX
+                        -- then get obs with the lowest X (or Nothing)
+                        -- finally get the position of the right edge of that obs
+                        obstaclesInRow
+                            |> List.filter (\obs -> obs.x > currentCellX)
+                            |> ListEx.minimumBy (\obs -> obs.x)
+                            |> Maybe.andThen (\obs -> Just ((obs.x * cellWidth) - 1))
 
                     rightBorder =
-                        Maybe.withDefault (config.screenWidth - halfSpriteWidth) maybeReleventBombBorder
+                        Maybe.withDefault (config.screenWidth - halfSpriteWidth) maybeReleventObsBorder
 
                     newX =
                         min rightBorder (model.x + changeInPosition)
@@ -255,17 +275,17 @@ move timeDiff model =
 
             Up ->
                 let
-                    maybeReleventBombBorder =
-                        -- first filter any bombs below currentCellY
-                        -- then get bomb with the lowest Y (or Nothing)
-                        -- finally get the position of the bottom edge of that bomb
-                        bombsInColumn
-                            |> List.filter (\bomb -> bomb.y < currentCellY)
-                            |> ListEx.maximumBy (\bomb -> bomb.y)
-                            |> Maybe.andThen (\bomb -> Just (((bomb.y + 1) * cellHeight) + 1))
+                    maybeReleventObsBorder =
+                        -- first filter any obs below currentCellY
+                        -- then get obs with the lowest Y (or Nothing)
+                        -- finally get the position of the bottom edge of that obs
+                        obstaclesInColumn
+                            |> List.filter (\obs -> obs.y < currentCellY)
+                            |> ListEx.maximumBy (\obs -> obs.y)
+                            |> Maybe.andThen (\obs -> Just (((obs.y + 1) * cellHeight) + 1))
 
                     topBorder =
-                        Maybe.withDefault halfSpriteHeight maybeReleventBombBorder
+                        Maybe.withDefault halfSpriteHeight maybeReleventObsBorder
 
                     newY =
                         max topBorder (model.y - changeInPosition)
@@ -277,17 +297,17 @@ move timeDiff model =
 
             Down ->
                 let
-                    maybeReleventBombBorder =
-                        -- first filter any bombs above currentCellY
-                        -- then get bomb with the highest Y (or Nothing)
-                        -- finally get the position of the top edge of that bomb
-                        bombsInColumn
-                            |> List.filter (\bomb -> bomb.y > currentCellY)
-                            |> ListEx.minimumBy (\bomb -> bomb.y)
-                            |> Maybe.andThen (\bomb -> Just ((bomb.y * cellHeight) - 1))
+                    maybeReleventObsBorder =
+                        -- first filter any obs above currentCellY
+                        -- then get obs with the highest Y (or Nothing)
+                        -- finally get the position of the top edge of that obs
+                        obstaclesInColumn
+                            |> List.filter (\obs -> obs.y > currentCellY)
+                            |> ListEx.minimumBy (\obs -> obs.y)
+                            |> Maybe.andThen (\obs -> Just ((obs.y * cellHeight) - 1))
 
                     botomBorder =
-                        Maybe.withDefault (config.screenHeight - halfSpriteHeight) maybeReleventBombBorder
+                        Maybe.withDefault (config.screenHeight - halfSpriteHeight) maybeReleventObsBorder
 
                     newY =
                         min botomBorder (model.y + changeInPosition)
@@ -343,12 +363,26 @@ view model =
         (grid model
             ++ [ specialSquare model ]
             ++ [ player model ]
-            ++ (bombs model)
+            ++ (renderBombs model.bombs)
+            ++ (renderBricks model.bricks)
         )
 
 
-bombs : Model -> List (Svg Msg)
-bombs model =
+renderBricks : List Brick -> List (Svg Msg)
+renderBricks =
+    let
+        brickWidth =
+            cellWidth |> toString
+
+        brickHeight =
+            cellHeight |> toString
+    in
+        List.map
+            (\brick -> renderBrick "brown" brick.x brick.y)
+
+
+renderBombs : List Bomb -> List (Svg Msg)
+renderBombs =
     let
         bombWidth =
             cellWidth |> toString
@@ -367,7 +401,6 @@ bombs model =
                 in
                     Svg.image [ Svg.xlinkHref spriteImage, Svg.width bombWidth, Svg.height bombHeight, Svg.x (toString bombX), Svg.y (toString bombY) ] []
             )
-            model.bombs
 
 
 player : Model -> Svg Msg
@@ -433,6 +466,27 @@ cell isOver columnIndex rowIndex =
             [ Svg.width (toString cellWidth)
             , Svg.height (toString cellHeight)
             , Svg.fill <| cellColor (columnIndex + rowIndex) isOver
+            , Svg.y (toString yoffset)
+            , Svg.x (toString xoffset)
+            ]
+            []
+
+
+renderBrick : String -> Int -> Int -> Svg Msg
+renderBrick color columnIndex rowIndex =
+    -- TODO this is the same as the cell function except takes a color instead of a bool
+    -- there is probably a way to combine these two functions
+    let
+        xoffset =
+            columnIndex * cellWidth
+
+        yoffset =
+            rowIndex * cellHeight
+    in
+        Svg.rect
+            [ Svg.width (toString cellWidth)
+            , Svg.height (toString cellHeight)
+            , Svg.fill color
             , Svg.y (toString yoffset)
             , Svg.x (toString xoffset)
             ]
