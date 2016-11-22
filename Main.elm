@@ -10,6 +10,7 @@ import Char
 import Debug
 import Time exposing (Time)
 import AnimationFrame
+import List.Extra as ListEx
 
 
 -- Global Configs
@@ -26,7 +27,7 @@ type alias Config =
 
 
 config =
-    { velocity = 0.27
+    { velocity = 0.22
     , spriteChangeRate = 8
     , screenHeight = 550
     , screenWidth = 650
@@ -165,7 +166,7 @@ updateSpriteNumber number =
         numberOfSprites =
             3
     in
-        if number >= (numberOfSprites * config.spriteChangeRate) then
+        if number >= (numberOfSprites * config.spriteChangeRate - 1) then
             -- reset back to 0
             0
         else
@@ -197,31 +198,104 @@ move timeDiff model =
     let
         changeInPosition =
             timeDiff * config.velocity |> round
+
+        ( currentCellX, currentCellY ) =
+            positionToCell ( model.x, model.y )
+
+        bombsInColumn =
+            model.bombs |> List.filter (\bomb -> bomb.x == currentCellX)
+
+        bombsInRow =
+            model.bombs |> List.filter (\bomb -> bomb.y == currentCellY)
     in
         case model.direction of
             Left ->
-                { model
-                    | x = max halfSpriteWidth (model.x - changeInPosition)
-                    , currentSprite = updateSpriteNumber model.currentSprite
-                }
+                let
+                    maybeReleventBombBorder =
+                        -- first filter any bombs to the right of currentCellX
+                        -- then get bomb with the higest X (or Nothing)
+                        -- finally get the position of the right edge of that bomb
+                        bombsInRow
+                            |> List.filter (\bomb -> bomb.x < currentCellX)
+                            |> ListEx.maximumBy (\bomb -> bomb.x)
+                            |> Maybe.andThen (\bomb -> Just (((bomb.x + 1) * cellWidth) + 1))
+
+                    leftBorder =
+                        Maybe.withDefault halfSpriteWidth maybeReleventBombBorder
+
+                    newX =
+                        max leftBorder (model.x - changeInPosition)
+                in
+                    { model
+                        | x = newX
+                        , currentSprite = updateSpriteNumber model.currentSprite
+                    }
 
             Right ->
-                { model
-                    | x = min (config.screenWidth - halfSpriteWidth) (model.x + changeInPosition)
-                    , currentSprite = updateSpriteNumber model.currentSprite
-                }
+                let
+                    maybeReleventBombBorder =
+                        -- first filter any bombs to the left of currentCellX
+                        -- then get bomb with the lowest X (or Nothing)
+                        -- finally get the position of the right edge of that bomb
+                        bombsInRow
+                            |> List.filter (\bomb -> bomb.x > currentCellX)
+                            |> ListEx.minimumBy (\bomb -> bomb.x)
+                            |> Maybe.andThen (\bomb -> Just ((bomb.x * cellWidth) - 1))
+
+                    rightBorder =
+                        Maybe.withDefault (config.screenWidth - halfSpriteWidth) maybeReleventBombBorder
+
+                    newX =
+                        min rightBorder (model.x + changeInPosition)
+                in
+                    { model
+                        | x = newX
+                        , currentSprite = updateSpriteNumber model.currentSprite
+                    }
 
             Up ->
-                { model
-                    | y = max halfSpriteHeight (model.y - changeInPosition)
-                    , currentSprite = updateSpriteNumber model.currentSprite
-                }
+                let
+                    maybeReleventBombBorder =
+                        -- first filter any bombs below currentCellY
+                        -- then get bomb with the lowest Y (or Nothing)
+                        -- finally get the position of the bottom edge of that bomb
+                        bombsInColumn
+                            |> List.filter (\bomb -> bomb.y < currentCellY)
+                            |> ListEx.maximumBy (\bomb -> bomb.y)
+                            |> Maybe.andThen (\bomb -> Just (((bomb.y + 1) * cellHeight) + 1))
+
+                    topBorder =
+                        Maybe.withDefault halfSpriteHeight maybeReleventBombBorder
+
+                    newY =
+                        max topBorder (model.y - changeInPosition)
+                in
+                    { model
+                        | y = newY
+                        , currentSprite = updateSpriteNumber model.currentSprite
+                    }
 
             Down ->
-                { model
-                    | y = min (config.screenHeight - halfSpriteHeight) (model.y + changeInPosition)
-                    , currentSprite = updateSpriteNumber model.currentSprite
-                }
+                let
+                    maybeReleventBombBorder =
+                        -- first filter any bombs above currentCellY
+                        -- then get bomb with the highest Y (or Nothing)
+                        -- finally get the position of the top edge of that bomb
+                        bombsInColumn
+                            |> List.filter (\bomb -> bomb.y > currentCellY)
+                            |> ListEx.minimumBy (\bomb -> bomb.y)
+                            |> Maybe.andThen (\bomb -> Just ((bomb.y * cellHeight) - 1))
+
+                    botomBorder =
+                        Maybe.withDefault (config.screenHeight - halfSpriteHeight) maybeReleventBombBorder
+
+                    newY =
+                        min botomBorder (model.y + changeInPosition)
+                in
+                    { model
+                        | y = newY
+                        , currentSprite = updateSpriteNumber model.currentSprite
+                    }
 
             NoDirection ->
                 model
@@ -244,7 +318,7 @@ dropBomb : Model -> ( Model, Cmd Msg )
 dropBomb model =
     let
         ( cellX, cellY ) =
-            positionToCell (model.x, model.y)
+            positionToCell ( model.x, model.y )
 
         newBomb =
             { x = cellX, y = cellY, currentSprite = 0, timer = 5000 }
@@ -326,7 +400,7 @@ specialSquare : Model -> Svg Msg
 specialSquare model =
     let
         ( colIndex, rowIndex ) =
-            positionToCell (model.x, model.y)
+            positionToCell ( model.x, model.y )
     in
         cell True colIndex rowIndex
 
