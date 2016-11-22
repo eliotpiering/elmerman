@@ -73,6 +73,15 @@ type alias Model =
     , y : Int
     , direction : Direction
     , currentSprite : Int
+    , bombs : List Bomb
+    }
+
+
+type alias Bomb =
+    { x : Int
+    , y : Int
+    , currentSprite : Int
+    , timer : Int
     }
 
 
@@ -90,6 +99,7 @@ initialModel =
     , y = halfSpriteHeight
     , direction = NoDirection
     , currentSprite = 0
+    , bombs = []
     }
 
 
@@ -103,7 +113,11 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Tick timeDiff ->
-            noCmds (move model timeDiff)
+            noCmds
+                (model
+                    |> move timeDiff
+                    |> updateBombs timeDiff
+                )
 
         KeyUp code ->
             case code of
@@ -124,6 +138,10 @@ update msg model =
 
         KeyDown code ->
             case code of
+                32 ->
+                    -- Space Bar --
+                    dropBomb model
+
                 37 ->
                     turnOn model Left
 
@@ -155,8 +173,27 @@ updateSpiteNumber number =
             number + 1
 
 
-move : Model -> Time -> Model
-move model timeDiff =
+updateBombs : Time -> Model -> Model
+updateBombs timeDiff model =
+    { model
+        | bombs =
+            model.bombs
+                |> List.map
+                    (\bomb ->
+                        { bomb
+                            | timer = bomb.timer - (round timeDiff)
+                            , currentSprite = updateSpiteNumber bomb.currentSprite
+                        }
+                    )
+                |> List.filter
+                    (\bomb ->
+                        bomb.timer > 0
+                    )
+    }
+
+
+move : Time -> Model -> Model
+move timeDiff model =
     let
         changeInPosition =
             timeDiff * config.velocity |> round
@@ -203,6 +240,19 @@ turnOff model direction =
         noCmds model
 
 
+dropBomb : Model -> ( Model, Cmd Msg )
+dropBomb model =
+    let
+        ( cellX, cellY ) =
+            positionToCell (model.x, model.y)
+
+        newBomb =
+            { x = cellX, y = cellY, currentSprite = 0, timer = 5000 }
+    in
+        noCmds { model | bombs = newBomb :: model.bombs }
+
+
+subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ Keyboard.downs KeyDown
@@ -219,7 +269,31 @@ view model =
         (grid model
             ++ [ specialSquare model ]
             ++ [ player model ]
+            ++ (bombs model)
         )
+
+
+bombs : Model -> List (Svg Msg)
+bombs model =
+    let
+        bombWidth =
+            cellWidth |> toString
+
+        bombHeight =
+            cellHeight |> toString
+    in
+        List.map
+            (\bomb ->
+                let
+                    ( bombX, bombY ) =
+                        cellToPosition ( bomb.x, bomb.y )
+
+                    spriteImage =
+                        getBombSprite bomb
+                in
+                    Svg.image [ Svg.xlinkHref spriteImage, Svg.width bombWidth, Svg.height bombHeight, Svg.x (toString bombX), Svg.y (toString bombY) ] []
+            )
+            model.bombs
 
 
 player : Model -> Svg Msg
@@ -252,14 +326,19 @@ specialSquare : Model -> Svg Msg
 specialSquare model =
     let
         ( colIndex, rowIndex ) =
-            positionToCell model.x model.y
+            positionToCell (model.x, model.y)
     in
         cell True colIndex rowIndex
 
 
-positionToCell : Int -> Int -> ( Int, Int )
-positionToCell x y =
+positionToCell : ( Int, Int ) -> ( Int, Int )
+positionToCell ( x, y ) =
     ( x // cellWidth, y // cellHeight )
+
+
+cellToPosition : ( Int, Int ) -> ( Int, Int )
+cellToPosition ( x, y ) =
+    ( cellWidth * x, cellHeight * y )
 
 
 column : Int -> List (Svg Msg)
@@ -317,6 +396,19 @@ getPlayerSprite model =
 
         NoDirection ->
             assetPath ++ "forward0.png"
+
+
+getBombSprite : Bomb -> String
+getBombSprite bomb =
+    let
+        bombNumber =
+            bomb.currentSprite // config.spriteChangeRate |> toString
+    in
+        assetPath ++ "bomb" ++ bombNumber ++ ".png"
+
+
+
+-- "assets/bomb0.png"
 
 
 assetPath : String
