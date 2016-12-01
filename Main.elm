@@ -75,6 +75,7 @@ type alias Model =
     , direction : Direction
     , currentSprite : Int
     , bombs : List Bomb
+    , explodingBombs : List Bomb
     , bricks : List Brick
     }
 
@@ -120,7 +121,34 @@ initialModel =
     , direction = NoDirection
     , currentSprite = 0
     , bombs = []
-    , bricks = [ { x = 2, y = 0 }, { x = 2, y = 1 }, { x = 2, y = 2 }, { x = 0, y = 2 }, { x = 1, y = 2 } ]
+    , explodingBombs = []
+    , bricks =
+        [ { x = 2, y = 0 }
+        , { x = 4, y = 0 }
+        , { x = 6, y = 0 }
+        , { x = 8, y = 0 }
+        , { x = 10, y = 0 }
+        , { x = 2, y = 2 }
+        , { x = 4, y = 2 }
+        , { x = 6, y = 2 }
+        , { x = 8, y = 2 }
+        , { x = 10, y = 2 }
+        , { x = 2, y = 4 }
+        , { x = 4, y = 4 }
+        , { x = 6, y = 4 }
+        , { x = 8, y = 4 }
+        , { x = 10, y = 4 }
+        , { x = 2, y = 6 }
+        , { x = 4, y = 6 }
+        , { x = 6, y = 6 }
+        , { x = 8, y = 6 }
+        , { x = 10, y = 6 }
+        , { x = 2, y = 8 }
+        , { x = 4, y = 8 }
+        , { x = 6, y = 8 }
+        , { x = 8, y = 8 }
+        , { x = 10, y = 8 }
+        ]
     }
 
 
@@ -196,21 +224,43 @@ updateSpriteNumber number =
 
 updateBombs : Time -> Model -> Model
 updateBombs timeDiff model =
-    { model
-        | bombs =
-            model.bombs
-                |> List.map
-                    (\bomb ->
-                        { bomb
-                            | timer = bomb.timer - (round timeDiff)
-                            , currentSprite = updateSpriteNumber bomb.currentSprite
-                        }
-                    )
-                |> List.filter
-                    (\bomb ->
-                        bomb.timer > 0
-                    )
-    }
+    let
+        updateBombFunc =
+            List.map
+                (\bomb ->
+                    { bomb
+                        | timer = bomb.timer - (round timeDiff)
+                        , currentSprite = updateSpriteNumber bomb.currentSprite
+                    }
+                )
+
+        removeExpired =
+            List.filter
+                (\bomb ->
+                    bomb.timer >= 0
+                )
+
+        updatedBombs =
+            updateBombFunc model.bombs
+
+        updatedExplodingBombs =
+            updateBombFunc model.explodingBombs
+    in
+        { model
+            | bombs = removeExpired updatedBombs
+            , explodingBombs =
+                (removeExpired updatedExplodingBombs)
+                    ++ (updatedBombs
+                            |> List.filter
+                                (\bomb ->
+                                    bomb.timer < 0
+                                )
+                            |> List.map
+                                (\bomb ->
+                                    { bomb | timer = 1000 }
+                                )
+                       )
+        }
 
 
 move : Time -> Model -> Model
@@ -362,9 +412,10 @@ view model =
         ]
         (grid model
             ++ [ specialSquare model ]
-            ++ [ player model ]
             ++ (renderBombs model.bombs)
+            ++ (renderExplodingBombs model.explodingBombs)
             ++ (renderBricks model.bricks)
+            ++ [ player model ]
         )
 
 
@@ -378,7 +429,7 @@ renderBricks =
             cellHeight |> toString
     in
         List.map
-            (\brick -> renderBrick "brown" brick.x brick.y)
+            (\brick -> renderBrick "black" brick.x brick.y)
 
 
 renderBombs : List Bomb -> List (Svg Msg)
@@ -401,6 +452,19 @@ renderBombs =
                 in
                     Svg.image [ Svg.xlinkHref spriteImage, Svg.width bombWidth, Svg.height bombHeight, Svg.x (toString bombX), Svg.y (toString bombY) ] []
             )
+
+
+renderExplodingBombs : List Bomb -> List (Svg Msg)
+renderExplodingBombs =
+    let
+        brickWidth =
+            cellWidth |> toString
+
+        brickHeight =
+            cellHeight |> toString
+    in
+        List.map
+            (\brick -> renderBrick "white" brick.x brick.y)
 
 
 player : Model -> Svg Msg
