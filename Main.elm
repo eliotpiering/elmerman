@@ -84,6 +84,7 @@ type alias Player =
     { x : Int
     , y : Int
     , direction : Direction
+    , isAlive : Bool
     }
 
 
@@ -118,6 +119,7 @@ initialModel =
         { x = halfSpriteWidth
         , y = halfSpriteHeight
         , direction = NoDirection
+        , isAlive = True
         }
     , currentSprite = 0
     , bombs = []
@@ -159,6 +161,7 @@ update msg model =
                     |> move timeDiff
                     |> updateFires
                     |> updateBombs timeDiff
+                    |> maybeKillPlayer
                     |> updateSpriteNumber
                 )
 
@@ -415,6 +418,21 @@ move timeDiff model =
             |> (\player -> { model | player = player })
 
 
+maybeKillPlayer : Model -> Model
+maybeKillPlayer model =
+    let
+        player =
+            model.player
+
+        playerCell =
+            uncurry Point <| positionToCell ( player.x, player.y )
+
+        updatedPlayer =
+            { player | isAlive = not (List.member playerCell model.fires) && player.isAlive}
+    in
+        { model | player = updatedPlayer }
+
+
 turnOn : Player -> Direction -> Player
 turnOn player direction =
     { player | direction = direction }
@@ -483,7 +501,7 @@ view model =
             ++ (renderBombs model.currentSprite model.bombs)
             ++ (renderFires model.fires)
             ++ (renderBricks model.bricks)
-            ++ [ player model ]
+            ++ [ renderPlayer model ]
         )
 
 
@@ -535,8 +553,8 @@ renderFires =
             (\brick -> renderBrick "white" brick.x brick.y)
 
 
-player : Model -> Svg Msg
-player model =
+renderPlayer : Model -> Svg Msg
+renderPlayer model =
     let
         player =
             model.player
@@ -556,7 +574,12 @@ player model =
         spriteImage =
             getPlayerSprite model
     in
-        Svg.image [ Svg.xlinkHref spriteImage, Svg.width playerWidth, Svg.height playerHeight, Svg.x centerX, Svg.y centerY ] []
+        if player.isAlive
+        then
+          Svg.image [ Svg.xlinkHref spriteImage, Svg.width playerWidth, Svg.height playerHeight, Svg.x centerX, Svg.y centerY ] []
+        else
+          Svg.text ""
+
 
 
 grid : Model -> List (Svg Msg)
