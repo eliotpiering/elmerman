@@ -71,14 +71,19 @@ noCmds model =
 
 type alias Model =
     -- TODO make player its own model
-    { x : Int
-    , y : Int
-    , direction : Direction
+    { player : Player
     , currentSprite : Int
     , bombs : List Bomb
     , explodingBombs : List Bomb
     , bricks : List Point
     , fires : List Point
+    }
+
+
+type alias Player =
+    { x : Int
+    , y : Int
+    , direction : Direction
     }
 
 
@@ -109,9 +114,11 @@ type Direction
 
 initialModel : Model
 initialModel =
-    { x = halfSpriteWidth
-    , y = halfSpriteHeight
-    , direction = NoDirection
+    { player =
+        { x = halfSpriteWidth
+        , y = halfSpriteHeight
+        , direction = NoDirection
+        }
     , currentSprite = 0
     , bombs = []
     , explodingBombs = []
@@ -158,16 +165,16 @@ update msg model =
         KeyUp code ->
             case code of
                 37 ->
-                    turnOff model Left
+                    noCmds { model | player = turnOff model.player Left }
 
                 39 ->
-                    turnOff model Right
+                    noCmds { model | player = turnOff model.player Right }
 
                 40 ->
-                    turnOff model Down
+                    noCmds { model | player = turnOff model.player Down }
 
                 38 ->
-                    turnOff model Up
+                    noCmds { model | player = turnOff model.player Up }
 
                 _ ->
                     noCmds model
@@ -179,16 +186,16 @@ update msg model =
                     dropBomb model
 
                 37 ->
-                    turnOn model Left
+                    noCmds { model | player = turnOn model.player Left }
 
                 39 ->
-                    turnOn model Right
+                    noCmds { model | player = turnOn model.player Right }
 
                 40 ->
-                    turnOn model Down
+                    noCmds { model | player = turnOn model.player Down }
 
                 38 ->
-                    turnOn model Up
+                    noCmds { model | player = turnOn model.player Up }
 
                 _ ->
                     noCmds model
@@ -302,11 +309,14 @@ updateFires model =
 move : Time -> Model -> Model
 move timeDiff model =
     let
+        player =
+            model.player
+
         changeInPosition =
             timeDiff * config.velocity |> round
 
         ( currentCellX, currentCellY ) =
-            positionToCell ( model.x, model.y )
+            positionToCell ( player.x, player.y )
 
         obstaclesInColumn =
             List.append (List.map toPoint model.bombs) model.bricks |> List.filter (\obs -> obs.x == currentCellX)
@@ -314,7 +324,7 @@ move timeDiff model =
         obstaclesInRow =
             List.append (List.map toPoint model.bombs) model.bricks |> List.filter (\obs -> obs.y == currentCellY)
     in
-        case model.direction of
+        (case player.direction of
             Left ->
                 let
                     maybeReleventObsBorder =
@@ -330,9 +340,9 @@ move timeDiff model =
                         Maybe.withDefault halfSpriteWidth maybeReleventObsBorder
 
                     newX =
-                        max leftBorder (model.x - changeInPosition)
+                        max leftBorder (player.x - changeInPosition)
                 in
-                    { model
+                    { player
                         | x = newX
                     }
 
@@ -351,9 +361,9 @@ move timeDiff model =
                         Maybe.withDefault (config.screenWidth - halfSpriteWidth) maybeReleventObsBorder
 
                     newX =
-                        min rightBorder (model.x + changeInPosition)
+                        min rightBorder (player.x + changeInPosition)
                 in
-                    { model
+                    { player
                         | x = newX
                     }
 
@@ -372,9 +382,9 @@ move timeDiff model =
                         Maybe.withDefault halfSpriteHeight maybeReleventObsBorder
 
                     newY =
-                        max topBorder (model.y - changeInPosition)
+                        max topBorder (player.y - changeInPosition)
                 in
-                    { model
+                    { player
                         | y = newY
                     }
 
@@ -393,34 +403,36 @@ move timeDiff model =
                         Maybe.withDefault (config.screenHeight - halfSpriteHeight) maybeReleventObsBorder
 
                     newY =
-                        min botomBorder (model.y + changeInPosition)
+                        min botomBorder (player.y + changeInPosition)
                 in
-                    { model
+                    { player
                         | y = newY
                     }
 
             NoDirection ->
-                model
+                player
+        )
+            |> (\player -> { model | player = player })
 
 
-turnOn : Model -> Direction -> ( Model, Cmd Msg )
-turnOn model direction =
-    noCmds { model | direction = direction }
+turnOn : Player -> Direction -> Player
+turnOn player direction =
+    { player | direction = direction }
 
 
-turnOff : Model -> Direction -> ( Model, Cmd Msg )
-turnOff model direction =
-    if model.direction == direction then
-        noCmds { model | direction = NoDirection }
+turnOff : Player -> Direction -> Player
+turnOff player direction =
+    if player.direction == direction then
+        { player | direction = NoDirection }
     else
-        noCmds model
+        player
 
 
 dropBomb : Model -> ( Model, Cmd Msg )
 dropBomb model =
     let
         ( cellX, cellY ) =
-            positionToCell ( model.x, model.y )
+            positionToCell ( model.player.x, model.player.y )
 
         newBomb =
             { x = cellX, y = cellY, timer = 5000 }
@@ -468,7 +480,6 @@ view model =
         , Svg.height <| toString config.screenHeight
         ]
         (grid model
-            ++ [ specialSquare model ]
             ++ (renderBombs model.currentSprite model.bombs)
             ++ (renderFires model.fires)
             ++ (renderBricks model.bricks)
@@ -527,6 +538,9 @@ renderFires =
 player : Model -> Svg Msg
 player model =
     let
+        player =
+            model.player
+
         playerWidth =
             cellWidth |> toString
 
@@ -534,10 +548,10 @@ player model =
             cellHeight |> toString
 
         centerX =
-            (model.x - (cellWidth // 2)) |> toString
+            (player.x - (cellWidth // 2)) |> toString
 
         centerY =
-            (model.y - (cellHeight // 2)) |> toString
+            (player.y - (cellHeight // 2)) |> toString
 
         spriteImage =
             getPlayerSprite model
@@ -548,15 +562,6 @@ player model =
 grid : Model -> List (Svg Msg)
 grid model =
     (List.map column <| List.range 0 config.numberOfColumns) |> List.concat
-
-
-specialSquare : Model -> Svg Msg
-specialSquare model =
-    let
-        ( colIndex, rowIndex ) =
-            positionToCell ( model.x, model.y )
-    in
-        cell True colIndex rowIndex
 
 
 positionToCell : ( Int, Int ) -> ( Int, Int )
@@ -630,7 +635,7 @@ cellColor cellNum isOver =
 
 getPlayerSprite : Model -> String
 getPlayerSprite model =
-    case model.direction of
+    case model.player.direction of
         Left ->
             assetPath ++ "left" ++ (toString <| model.currentSprite // config.spriteChangeRate) ++ ".png"
 
