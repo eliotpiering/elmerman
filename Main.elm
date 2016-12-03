@@ -70,6 +70,7 @@ noCmds model =
 
 
 type alias Model =
+    -- TODO make player its own model
     { x : Int
     , y : Int
     , direction : Direction
@@ -77,6 +78,7 @@ type alias Model =
     , bombs : List Bomb
     , explodingBombs : List Bomb
     , bricks : List Brick
+    , fires : List Fire
     }
 
 
@@ -85,6 +87,16 @@ type alias Bomb =
     , y : Int
     , currentSprite : Int
     , timer : Int
+    }
+
+
+
+-- TODO make these a point, object, model (x, y) tuple
+
+
+type alias Fire =
+    { x : Int
+    , y : Int
     }
 
 
@@ -122,29 +134,21 @@ initialModel =
     , currentSprite = 0
     , bombs = []
     , explodingBombs = []
+    , fires = []
     , bricks =
         [ { x = 2, y = 0 }
-        , { x = 4, y = 0 }
         , { x = 6, y = 0 }
-        , { x = 8, y = 0 }
-        , { x = 10, y = 0 }
-        , { x = 2, y = 2 }
         , { x = 4, y = 2 }
         , { x = 6, y = 2 }
-        , { x = 8, y = 2 }
         , { x = 10, y = 2 }
         , { x = 2, y = 4 }
         , { x = 4, y = 4 }
         , { x = 6, y = 4 }
-        , { x = 8, y = 4 }
-        , { x = 10, y = 4 }
         , { x = 2, y = 6 }
-        , { x = 4, y = 6 }
         , { x = 6, y = 6 }
         , { x = 8, y = 6 }
         , { x = 10, y = 6 }
         , { x = 2, y = 8 }
-        , { x = 4, y = 8 }
         , { x = 6, y = 8 }
         , { x = 8, y = 8 }
         , { x = 10, y = 8 }
@@ -165,6 +169,7 @@ update msg model =
             noCmds
                 (model
                     |> move timeDiff
+                    |> updateFires
                     |> updateBombs timeDiff
                 )
 
@@ -257,9 +262,94 @@ updateBombs timeDiff model =
                                 )
                             |> List.map
                                 (\bomb ->
-                                    { bomb | timer = 1000 }
+                                    { bomb | timer = 2000 }
                                 )
                        )
+        }
+
+
+updateFires : Model -> Model
+updateFires model =
+    let
+        -- findFires =
+        --     (\bomb fires ->
+        --         let
+        --             -- TODO can we remove this duplication?
+        --             rightBound =
+        --                 model.bricks
+        --                     |> List.filter (\brick -> brick.y == bomb.y && brick.x > bomb.x)
+        --                     |> List.map .x
+        --                     |> List.minimum
+        --                     |> Maybe.withDefault (bomb.x + 3)
+        --             leftBound =
+        --                 model.bricks
+        --                     |> List.filter (\brick -> brick.y == bomb.y && brick.x < bomb.x)
+        --                     |> List.map .x
+        --                     |> List.maximum
+        --                     |> Maybe.withDefault (bomb.x - 3)
+        --             lowerBound =
+        --                 model.bricks
+        --                     |> List.filter (\brick -> brick.x == bomb.x && brick.y > bomb.y)
+        --                     |> List.map .y
+        --                     |> List.minimum
+        --                     |> Maybe.withDefault (bomb.y + 3)
+        --             upperBound =
+        --                 model.bricks
+        --                     |> List.filter (\brick -> brick.x == bomb.x && brick.y < bomb.y)
+        --                     |> List.map .y
+        --                     |> List.maximum
+        --                     |> Maybe.withDefault (bomb.y - 3)
+        --             firesX =
+        --                 List.range leftBound rightBound |> List.map (\x -> { x = x, y = bomb.y })
+        --             firesY =
+        --                 List.range upperBound lowerBound |> List.map (\y -> { y = y, x = bomb.x })
+        --             firesXY =
+        --                 firesX ++ firesY
+        --         in
+        --             List.append fires firesXY
+        --     )
+        -- fires =
+        --     List.foldl findFires [] model.explodingBombs
+        notABrick point =
+            not <| List.member point model.bricks
+
+        fires =
+            model.explodingBombs
+                |> List.concatMap
+                    (\bomb ->
+                        let
+                            pointsAbove =
+                                findPoints Up 3 bomb
+
+                            pointsBelow =
+                                findPoints Down 3 bomb
+
+                            pointsRight =
+                                findPoints Right 3 bomb
+
+                            pointsLeft =
+                                findPoints Left 3 bomb
+                        in
+                            ListEx.takeWhile notABrick pointsAbove
+                                ++ ListEx.takeWhile notABrick pointsBelow
+                                ++ ListEx.takeWhile notABrick pointsLeft
+                                ++ ListEx.takeWhile notABrick pointsRight
+                    )
+
+        updatedBombs =
+            model.bombs
+                |> List.map
+                    (\unexplodedBomb ->
+                        if List.member { x = unexplodedBomb.x, y = unexplodedBomb.y } fires then
+                            -- explode the bomb
+                            { unexplodedBomb | timer = 0 }
+                        else
+                            unexplodedBomb
+                    )
+    in
+        { model
+            | fires = fires
+            , bombs = updatedBombs
         }
 
 
@@ -396,6 +486,34 @@ dropBomb model =
         noCmds { model | bombs = newBomb :: model.bombs }
 
 
+
+-- findPoints : Direction -> Int -> { x : Int, y : Int } -> List { x : Int, y : Int }
+
+
+findPoints direction limit point =
+    case direction of
+        Left ->
+            List.range (point.x - limit) point.x
+                |> List.map (\x -> { x = x, y = point.y })
+                |> List.reverse
+
+        Right ->
+            List.range point.x (point.x + limit)
+                |> List.map (\x -> { x = x, y = point.y })
+
+        Up ->
+            List.range (point.y - limit) point.y
+                |> List.map (\y -> { y = y, x = point.x })
+                |> List.reverse
+
+        Down ->
+            List.range point.y (point.y + limit)
+                |> List.map (\y -> { y = y, x = point.x })
+
+        _ ->
+            [ { x = point.x, y = point.y } ]
+
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
@@ -413,7 +531,7 @@ view model =
         (grid model
             ++ [ specialSquare model ]
             ++ (renderBombs model.bombs)
-            ++ (renderExplodingBombs model.explodingBombs)
+            ++ (renderFires model.fires)
             ++ (renderBricks model.bricks)
             ++ [ player model ]
         )
@@ -454,8 +572,8 @@ renderBombs =
             )
 
 
-renderExplodingBombs : List Bomb -> List (Svg Msg)
-renderExplodingBombs =
+renderFires : List Fire -> List (Svg Msg)
+renderFires =
     let
         brickWidth =
             cellWidth |> toString
