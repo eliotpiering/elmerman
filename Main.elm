@@ -77,44 +77,25 @@ type alias Model =
     , currentSprite : Int
     , bombs : List Bomb
     , explodingBombs : List Bomb
-    , bricks : List Brick
-    , fires : List Fire
+    , bricks : List Point
+    , fires : List Point
     }
 
 
 type alias Bomb =
     { x : Int
     , y : Int
-    , currentSprite : Int
     , timer : Int
     }
 
 
-
--- TODO make these a point, object, model (x, y) tuple
-
-
-type alias Fire =
+type alias Point =
     { x : Int
     , y : Int
     }
 
 
-type alias Brick =
-    { x : Int
-    , y : Int
-    }
-
-
-type alias Obstacle =
-    -- A generic model used in the move function
-    -- This could be a Brick or a Bomb
-    { x : Int
-    , y : Int
-    }
-
-
-toObstactle item =
+toPoint item =
     { x = item.x, y = item.y }
 
 
@@ -171,6 +152,7 @@ update msg model =
                     |> move timeDiff
                     |> updateFires
                     |> updateBombs timeDiff
+                    |> updateSpriteNumber
                 )
 
         KeyUp code ->
@@ -212,19 +194,22 @@ update msg model =
                     noCmds model
 
 
-updateSpriteNumber : Int -> Int
-updateSpriteNumber number =
+updateSpriteNumber : Model -> Model
+updateSpriteNumber model =
     -- have to use spriteChangeRate parameter to slow down the rate that the sprite changes
     let
         numberOfSprites =
             3
+
+        newSprite =
+            if model.currentSprite >= (numberOfSprites * config.spriteChangeRate - 1) then
+                -- reset back to 0
+                0
+            else
+                -- increase the sprite model.currentSprite
+                model.currentSprite + 1
     in
-        if number >= (numberOfSprites * config.spriteChangeRate - 1) then
-            -- reset back to 0
-            0
-        else
-            -- increate the sprite number
-            number + 1
+        { model | currentSprite = newSprite }
 
 
 updateBombs : Time -> Model -> Model
@@ -235,7 +220,6 @@ updateBombs timeDiff model =
                 (\bomb ->
                     { bomb
                         | timer = bomb.timer - (round timeDiff)
-                        , currentSprite = updateSpriteNumber bomb.currentSprite
                     }
                 )
 
@@ -271,50 +255,12 @@ updateBombs timeDiff model =
 updateFires : Model -> Model
 updateFires model =
     let
-        -- findFires =
-        --     (\bomb fires ->
-        --         let
-        --             -- TODO can we remove this duplication?
-        --             rightBound =
-        --                 model.bricks
-        --                     |> List.filter (\brick -> brick.y == bomb.y && brick.x > bomb.x)
-        --                     |> List.map .x
-        --                     |> List.minimum
-        --                     |> Maybe.withDefault (bomb.x + 3)
-        --             leftBound =
-        --                 model.bricks
-        --                     |> List.filter (\brick -> brick.y == bomb.y && brick.x < bomb.x)
-        --                     |> List.map .x
-        --                     |> List.maximum
-        --                     |> Maybe.withDefault (bomb.x - 3)
-        --             lowerBound =
-        --                 model.bricks
-        --                     |> List.filter (\brick -> brick.x == bomb.x && brick.y > bomb.y)
-        --                     |> List.map .y
-        --                     |> List.minimum
-        --                     |> Maybe.withDefault (bomb.y + 3)
-        --             upperBound =
-        --                 model.bricks
-        --                     |> List.filter (\brick -> brick.x == bomb.x && brick.y < bomb.y)
-        --                     |> List.map .y
-        --                     |> List.maximum
-        --                     |> Maybe.withDefault (bomb.y - 3)
-        --             firesX =
-        --                 List.range leftBound rightBound |> List.map (\x -> { x = x, y = bomb.y })
-        --             firesY =
-        --                 List.range upperBound lowerBound |> List.map (\y -> { y = y, x = bomb.x })
-        --             firesXY =
-        --                 firesX ++ firesY
-        --         in
-        --             List.append fires firesXY
-        --     )
-        -- fires =
-        --     List.foldl findFires [] model.explodingBombs
         notABrick point =
             not <| List.member point model.bricks
 
         fires =
             model.explodingBombs
+                |> List.map toPoint
                 |> List.concatMap
                     (\bomb ->
                         let
@@ -363,10 +309,10 @@ move timeDiff model =
             positionToCell ( model.x, model.y )
 
         obstaclesInColumn =
-            List.append (List.map toObstactle model.bombs) (List.map toObstactle model.bricks) |> List.filter (\obs -> obs.x == currentCellX)
+            List.append (List.map toPoint model.bombs) model.bricks |> List.filter (\obs -> obs.x == currentCellX)
 
         obstaclesInRow =
-            List.append (List.map toObstactle model.bombs) (List.map toObstactle model.bricks) |> List.filter (\obs -> obs.y == currentCellY)
+            List.append (List.map toPoint model.bombs) model.bricks |> List.filter (\obs -> obs.y == currentCellY)
     in
         case model.direction of
             Left ->
@@ -388,7 +334,6 @@ move timeDiff model =
                 in
                     { model
                         | x = newX
-                        , currentSprite = updateSpriteNumber model.currentSprite
                     }
 
             Right ->
@@ -410,7 +355,6 @@ move timeDiff model =
                 in
                     { model
                         | x = newX
-                        , currentSprite = updateSpriteNumber model.currentSprite
                     }
 
             Up ->
@@ -432,7 +376,6 @@ move timeDiff model =
                 in
                     { model
                         | y = newY
-                        , currentSprite = updateSpriteNumber model.currentSprite
                     }
 
             Down ->
@@ -454,7 +397,6 @@ move timeDiff model =
                 in
                     { model
                         | y = newY
-                        , currentSprite = updateSpriteNumber model.currentSprite
                     }
 
             NoDirection ->
@@ -481,15 +423,12 @@ dropBomb model =
             positionToCell ( model.x, model.y )
 
         newBomb =
-            { x = cellX, y = cellY, currentSprite = 0, timer = 5000 }
+            { x = cellX, y = cellY, timer = 5000 }
     in
         noCmds { model | bombs = newBomb :: model.bombs }
 
 
-
--- findPoints : Direction -> Int -> { x : Int, y : Int } -> List { x : Int, y : Int }
-
-
+findPoints : Direction -> Int -> Point -> List Point
 findPoints direction limit point =
     case direction of
         Left ->
@@ -530,14 +469,14 @@ view model =
         ]
         (grid model
             ++ [ specialSquare model ]
-            ++ (renderBombs model.bombs)
+            ++ (renderBombs model.currentSprite model.bombs)
             ++ (renderFires model.fires)
             ++ (renderBricks model.bricks)
             ++ [ player model ]
         )
 
 
-renderBricks : List Brick -> List (Svg Msg)
+renderBricks : List Point -> List (Svg Msg)
 renderBricks =
     let
         brickWidth =
@@ -550,8 +489,8 @@ renderBricks =
             (\brick -> renderBrick "black" brick.x brick.y)
 
 
-renderBombs : List Bomb -> List (Svg Msg)
-renderBombs =
+renderBombs : Int -> List Bomb -> List (Svg Msg)
+renderBombs currentSprite =
     let
         bombWidth =
             cellWidth |> toString
@@ -566,13 +505,13 @@ renderBombs =
                         cellToPosition ( bomb.x, bomb.y )
 
                     spriteImage =
-                        getBombSprite bomb
+                        getBombSprite bomb currentSprite
                 in
                     Svg.image [ Svg.xlinkHref spriteImage, Svg.width bombWidth, Svg.height bombHeight, Svg.x (toString bombX), Svg.y (toString bombY) ] []
             )
 
 
-renderFires : List Fire -> List (Svg Msg)
+renderFires : List Point -> List (Svg Msg)
 renderFires =
     let
         brickWidth =
@@ -708,11 +647,11 @@ getPlayerSprite model =
             assetPath ++ "forward0.png"
 
 
-getBombSprite : Bomb -> String
-getBombSprite bomb =
+getBombSprite : Bomb -> Int -> String
+getBombSprite bomb currentSprite =
     let
         bombNumber =
-            bomb.currentSprite // config.spriteChangeRate |> toString
+            currentSprite // config.spriteChangeRate |> toString
     in
         assetPath ++ "bomb" ++ bombNumber ++ ".png"
 
