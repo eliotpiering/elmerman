@@ -1,12 +1,9 @@
 module Main exposing (..)
 
 import Html exposing (Html)
-import Html.Attributes as Html
-import Html
 import Keyboard exposing (KeyCode)
 import Svg exposing (Svg)
 import Svg.Attributes as Svg
-import Char
 import Debug
 import Time exposing (Time)
 import AnimationFrame
@@ -26,6 +23,7 @@ type alias Config =
     }
 
 
+config : Config
 config =
     { velocity = 0.22
     , spriteChangeRate = 8
@@ -682,10 +680,6 @@ getBombSprite bomb currentSprite =
             currentSprite // config.spriteChangeRate |> toString
     in
         assetPath ++ "bomb" ++ bombNumber ++ ".png"
-
-
-
--- "assets/bomb0.png"
 
 
 assetPath : String
