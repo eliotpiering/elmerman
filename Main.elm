@@ -513,7 +513,7 @@ renderBricks =
             cellHeight |> toString
     in
         List.map
-            (\brick -> renderBrick "black" brick.x brick.y)
+            (\brick -> renderBrick brickColor brick.x brick.y)
 
 
 renderBombs : Int -> List Bomb -> List (Svg Msg)
@@ -548,7 +548,7 @@ renderFires =
             cellHeight |> toString
     in
         List.map
-            (\brick -> renderBrick "white" brick.x brick.y)
+            (\brick -> renderBrick fireColor brick.x brick.y)
 
 
 renderPlayer : Model -> Svg Msg
@@ -643,13 +643,17 @@ renderBrick color columnIndex rowIndex =
 cellColor : Int -> Bool -> String
 cellColor cellNum isOver =
     if isOver then
-        "white"
+        "blue"
     else if cellNum % 2 == 0 then
-        "red"
+        cellColor1
     else
-        "yellow"
+        cellColor2
 
 
+cellColor2 = "white"
+cellColor1 = "rgb(230, 230, 230)"
+fireColor = "yellow"
+brickColor = "rgb(100, 50, 0)"
 
 ----- Assets -----------
 
